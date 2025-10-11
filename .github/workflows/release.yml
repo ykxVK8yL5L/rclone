@@ -237,8 +237,8 @@ jobs:
           if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then make release_dep_linux ; fi
           make
           make compile_all
-          ls
-          make tarball
+          ls build
+          #make tarball
           make upload_github
         env:
           GH_TOKEN: ${{ secrets.MY_TOKEN }}
