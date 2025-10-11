@@ -47,7 +47,6 @@ jobs:
             goarch: 386
             gotags: cmount
             quicktest: false
-            compile_all: true
 
           - job_name: mac_amd64
             os: macos-latest
@@ -90,7 +89,6 @@ jobs:
             go: '1.24'
             quicktest: false
             racequicktest: false
-            compile_all: true
 
     name: ${{ matrix.job_name }}
 
