@@ -2,7 +2,7 @@
 # Github Actions build for rclone
 # 复制Plugins下的文件加入自定义的backend
 
-name: 分部到Release
+name: 发布到Release
 
 on: 
   workflow_dispatch:
