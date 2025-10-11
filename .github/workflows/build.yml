@@ -5,13 +5,7 @@
 name: build
 
 # Trigger the workflow on push or pull request
-on:
-  push:
-    branches:
-      - '**'
-    tags:
-      - '**'
-  pull_request:
+on: 
   workflow_dispatch:
     inputs:
       manual:
@@ -104,6 +98,43 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
+
+      - name: Get plugin folder names
+        id: get_plugins
+        run: |
+          # 获取plugins目录下的文件夹名
+          plugin_dirs=$(find plugins -mindepth 1 -maxdepth 1 -type d -exec basename {} \;)
+          echo "Plugin directories: $plugin_dirs"
+          
+          # 将plugin_dirs保存到输出变量中
+          echo "::set-output name=plugin_dirs::$plugin_dirs"
+
+      - name: Copy plugin files to backend
+        run: |
+          # 从前一步获取插件目录列表
+          plugin_dirs="${{ steps.get_plugins.outputs.plugin_dirs }}"
+          IFS=' ' read -r -a plugins_array <<< "$plugin_dirs"
+          
+          # 复制所有插件文件夹内容到backend目录
+          for dir in "${plugins_array[@]}"; do
+            echo "Copying $dir to backend"
+            cp -r "plugins/$dir" "backend/"
+          done
+
+      - name: Update all.go file
+        run: |
+          # 从前一步获取插件目录列表
+          plugin_dirs="${{ steps.get_plugins.outputs.plugin_dirs }}"
+          IFS=' ' read -r -a plugins_array <<< "$plugin_dirs"
+          
+          # 插入import语句到all.go倒数第二行
+          gofile="backend/all/all.go"
+          for dir in "${plugins_array[@]}"; do
+            import_line="_ \"github.com/rclone/rclone/backend/$dir\""
+            echo "Adding import statement for $dir"
+            # 使用sed在倒数第二行插入import语句
+            sed -i "$(( $(wc -l < $gofile) - 1 ))i $import_line" $gofile
+          done
 
       - name: Set environment variables
         run: |
