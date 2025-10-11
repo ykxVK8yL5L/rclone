@@ -130,10 +130,10 @@ jobs:
           # 插入import语句到all.go倒数第二行
           gofile="backend/all/all.go"
           for dir in "${plugins_array[@]}"; do
-            import_line="_ \"github.com/rclone/rclone/backend/$dir\""
+            import_line="	_ \"github.com/rclone/rclone/backend/$dir\""
             echo "Adding import statement for $dir"
-            # 使用sed在倒数第二行插入import语句
-            sed -i "$(( $(wc -l < $gofile) - 1 ))i $import_line" $gofile
+            #在倒数第二行插入import语句
+            awk -v insert="$import_line" "{print} NR==$(wc -l < $gofile)-1{print insert}" $gofile > tmp && mv tmp $gofile
           done
 
       - name: Set environment variables
