@@ -244,7 +244,12 @@ jobs:
 
       - name: 整理文件
         run: |
-          make tarball
+          for dir in build/*/; do
+            if [ -d "$dir" ]; then
+              dir_name=$(basename "$dir")  # 获取目录名
+              tar -czf "build/$dir_name.tar.gz" -C build "$dir_name"  # 压缩目录到build下
+            fi
+          done
         env:
           GH_TOKEN: ${{ secrets.MY_TOKEN }}
 
