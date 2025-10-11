@@ -1,9 +1,7 @@
 package api
 
 import (
-	"fmt"
 	"testing"
-	"time"
 )
 
 // TestLinkValid tests the Link.Valid method for various scenarios
