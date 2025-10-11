@@ -244,9 +244,7 @@ jobs:
 
       - name: 整理文件
         run: |
-          ls
-          echo "=======以下是Build目录======"
-          ls build
+          make tarball
         env:
           GH_TOKEN: ${{ secrets.MY_TOKEN }}
 
