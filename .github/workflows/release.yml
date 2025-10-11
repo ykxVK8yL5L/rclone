@@ -235,7 +235,7 @@ jobs:
       - name: 编译并上传到release
         run: |
           if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then make release_dep_linux ; fi
-          make cross
+          make
           make upload_github
         env:
           GH_TOKEN: ${{ secrets.MY_TOKEN }}
