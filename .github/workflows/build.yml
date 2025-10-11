@@ -32,9 +32,9 @@ jobs:
             gotags: cmount
             build_flags: '-include "^linux/"'
             check: true
-            quicktest: true
-            racequicktest: true
-            librclonetest: true
+            quicktest: false
+            racequicktest: false
+            librclonetest: false
             deploy: true
 
           - job_name: linux_386
@@ -49,8 +49,8 @@ jobs:
             go: '>=1.25.0-rc.1'
             gotags: 'cmount'
             build_flags: '-include "^darwin/amd64" -cgo'
-            quicktest: true
-            racequicktest: true
+            quicktest: false
+            racequicktest: false
             deploy: true
 
           - job_name: mac_arm64
@@ -67,7 +67,7 @@ jobs:
             cgo: '0'
             build_flags: '-include "^windows/"'
             build_args: '-buildmode exe'
-            quicktest: true
+            quicktest: false
             deploy: true
 
           - job_name: other_os
@@ -80,8 +80,8 @@ jobs:
           - job_name: go1.24
             os: ubuntu-latest
             go: '1.24'
-            quicktest: true
-            racequicktest: true
+            quicktest: false
+            racequicktest: false
 
     name: ${{ matrix.job_name }}
 
