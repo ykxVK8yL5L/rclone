@@ -11,6 +11,10 @@ on:
         description: Manual run (bypass default conditions)
         type: boolean
         default: true
+      tag:
+        description: 'Tag to release'
+        required: true
+        default: 'latest'
 
 jobs:
   build:
@@ -238,9 +242,17 @@ jobs:
         # Deploy binaries if enabled in config && not a PR && not a fork
         if: env.RCLONE_CONFIG_PASS != '' && matrix.deploy && github.head_ref == '' && github.repository == 'rclone/rclone'
 
-      - name: 编译并上传到release
-        run: |
-          make upload_github
-        env:
-          GH_TOKEN: ${{ secrets.MY_TOKEN }}
+      # - name: 编译并上传到release
+      #   run: |
+      #     make upload_github
+      #   env:
+      #     GH_TOKEN: ${{ secrets.MY_TOKEN }}
+      - name: Upload binary to GitHub Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.MY_TOKEN }}
+          file: build/*
+          file_glob: true
+          overwrite: true
+          tag: "refs/tags/${{ github.event.inputs.tag }}"
 
