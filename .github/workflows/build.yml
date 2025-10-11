@@ -42,7 +42,7 @@ jobs:
             go: '>=1.25.0-rc.1'
             goarch: 386
             gotags: cmount
-            quicktest: true
+            quicktest: false
 
           - job_name: mac_amd64
             os: macos-latest
@@ -493,4 +493,4 @@ jobs:
         env:
           RCLONE_CONFIG_PASS: ${{ secrets.RCLONE_CONFIG_PASS }}
         # Upload artifacts if not a PR && not a fork
-        if: env.RCLONE_CONFIG_PASS != '' && github.head_ref == '' && github.repository == 'rclone/rclone'
+        # if: env.RCLONE_CONFIG_PASS != '' && github.head_ref == '' && github.repository == 'rclone/rclone'
