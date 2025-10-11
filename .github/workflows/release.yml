@@ -244,10 +244,18 @@ jobs:
 
       - name: 整理文件
         run: |
+          # for dir in build/*/; do
+          #   if [ -d "$dir" ]; then
+          #     dir_name=$(basename "$dir")  # 获取目录名
+          #     tar -czf "build/$dir_name.tar.gz" -C build "$dir_name"  # 压缩目录到build下
+          #   fi
+          # done
+          # 下面的命令去除了文件名的git的信息，这样以后直接上传就会替换老文件
           for dir in build/*/; do
             if [ -d "$dir" ]; then
               dir_name=$(basename "$dir")  # 获取目录名
-              tar -czf "build/$dir_name.tar.gz" -C build "$dir_name"  # 压缩目录到build下
+              new_dir_name=$(echo "$dir_name" | sed -E 's/-beta[^-]*//')
+              zip -r "build/$new_dir_name.zip" -j "$dir"/*
             fi
           done
         env:
