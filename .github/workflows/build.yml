@@ -1,6 +1,6 @@
 ---
 # Github Actions build for rclone
-# -*- compile-command: "yamllint -f parsable build.yml" -*-
+# 复制Plugins下的文件加入自定义的backend
 
 name: build
 
