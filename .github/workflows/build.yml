@@ -258,6 +258,43 @@ jobs:
           go-version: '>=1.24.0-rc.1'
           check-latest: true
           cache: false
+          
+      - name: Get plugin folder names
+        id: get_plugins
+        run: |
+          # 获取plugins目录下的文件夹名
+          plugin_dirs=$(find plugins -mindepth 1 -maxdepth 1 -type d -exec basename {} \;)
+          echo "Plugin directories: $plugin_dirs"
+          
+          # 将plugin_dirs保存到输出变量中
+          echo "::set-output name=plugin_dirs::$plugin_dirs"
+
+      - name: Copy plugin files to backend
+        run: |
+          # 从前一步获取插件目录列表
+          plugin_dirs="${{ steps.get_plugins.outputs.plugin_dirs }}"
+          IFS=' ' read -r -a plugins_array <<< "$plugin_dirs"
+          
+          # 复制所有插件文件夹内容到backend目录
+          for dir in "${plugins_array[@]}"; do
+            echo "Copying $dir to backend"
+            cp -r "plugins/$dir" "backend/"
+          done
+
+      - name: Update all.go file
+        run: |
+          # 从前一步获取插件目录列表
+          plugin_dirs="${{ steps.get_plugins.outputs.plugin_dirs }}"
+          IFS=' ' read -r -a plugins_array <<< "$plugin_dirs"
+          
+          # 插入import语句到all.go倒数第二行
+          gofile="backend/all/all.go"
+          for dir in "${plugins_array[@]}"; do
+            import_line="	_ \"github.com/rclone/rclone/backend/$dir\""
+            echo "Adding import statement for $dir"
+            #在倒数第二行插入import语句
+            awk -v insert="$import_line" "{print} NR==$(wc -l < $gofile)-1{print insert}" $gofile > tmp && mv tmp $gofile
+          done
 
       - name: Cache
         uses: actions/cache@v4
@@ -349,6 +386,43 @@ jobs:
       - name: Set global environment variables
         run: |
           echo "VERSION=$(make version)" >> $GITHUB_ENV
+
+      - name: Get plugin folder names
+        id: get_plugins
+        run: |
+          # 获取plugins目录下的文件夹名
+          plugin_dirs=$(find plugins -mindepth 1 -maxdepth 1 -type d -exec basename {} \;)
+          echo "Plugin directories: $plugin_dirs"
+          
+          # 将plugin_dirs保存到输出变量中
+          echo "::set-output name=plugin_dirs::$plugin_dirs"
+
+      - name: Copy plugin files to backend
+        run: |
+          # 从前一步获取插件目录列表
+          plugin_dirs="${{ steps.get_plugins.outputs.plugin_dirs }}"
+          IFS=' ' read -r -a plugins_array <<< "$plugin_dirs"
+          
+          # 复制所有插件文件夹内容到backend目录
+          for dir in "${plugins_array[@]}"; do
+            echo "Copying $dir to backend"
+            cp -r "plugins/$dir" "backend/"
+          done
+
+      - name: Update all.go file
+        run: |
+          # 从前一步获取插件目录列表
+          plugin_dirs="${{ steps.get_plugins.outputs.plugin_dirs }}"
+          IFS=' ' read -r -a plugins_array <<< "$plugin_dirs"
+          
+          # 插入import语句到all.go倒数第二行
+          gofile="backend/all/all.go"
+          for dir in "${plugins_array[@]}"; do
+            import_line="	_ \"github.com/rclone/rclone/backend/$dir\""
+            echo "Adding import statement for $dir"
+            #在倒数第二行插入import语句
+            awk -v insert="$import_line" "{print} NR==$(wc -l < $gofile)-1{print insert}" $gofile > tmp && mv tmp $gofile
+          done
 
       - name: build native rclone
         run: |
