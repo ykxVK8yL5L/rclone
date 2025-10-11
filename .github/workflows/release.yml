@@ -242,11 +242,15 @@ jobs:
         # Deploy binaries if enabled in config && not a PR && not a fork
         if: env.RCLONE_CONFIG_PASS != '' && matrix.deploy && github.head_ref == '' && github.repository == 'rclone/rclone'
 
-      # - name: 编译并上传到release
-      #   run: |
-      #     make upload_github
-      #   env:
-      #     GH_TOKEN: ${{ secrets.MY_TOKEN }}
+      - name: 整理文件
+        run: |
+          ls
+          echo "=======以下是Build目录======"
+          ls build
+        env:
+          GH_TOKEN: ${{ secrets.MY_TOKEN }}
+
+          
       - name: Upload binary to GitHub Release
         uses: svenstaro/upload-release-action@v2
         with:
