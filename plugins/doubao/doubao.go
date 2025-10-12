@@ -1,4 +1,4 @@
-// Package pikpak provides an interface to the PikPak
+// Package doubao provides an interface to the Doubao
 package doubao
 
 // ------------------------------------------------------------
@@ -36,7 +36,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rclone/rclone/backend/doubao/api"
 	"github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/config"
 	"github.com/rclone/rclone/fs/config/configmap"
@@ -49,24 +48,22 @@ import (
 	"github.com/rclone/rclone/lib/pacer"
 	"github.com/rclone/rclone/lib/random"
 	"github.com/rclone/rclone/lib/rest"
+	"github.com/rclone/rclone/plugins/doubao/api"
 )
 
 // Constants
 const (
-	packageName      = "doubao.com"
-	defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
-	downloadApi      = "get_file_url"
-	minSleep         = 100 * time.Millisecond
-	maxSleep         = 2 * time.Second
-	taskWaitTime     = 500 * time.Millisecond
-	decayConstant    = 2 // bigger for slower decay, exponential
-	rootURL          = "https://www.doubao.com"
-	FileDataType     = "file"
-	ImgDataType      = "image"
-	VideoDataType    = "video"
-	Region           = "cn-north-1"
-
-	maxUploadParts      = 10000                           // Part number must be an integer between 1 and 10000, inclusive.
+	defaultUserAgent    = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
+	downloadAPI         = "get_file_url"
+	minSleep            = 100 * time.Millisecond
+	maxSleep            = 2 * time.Second
+	taskWaitTime        = 500 * time.Millisecond
+	decayConstant       = 2 // bigger for slower decay, exponential
+	rootURL             = "https://www.doubao.com"
+	FileDataType        = "file"
+	ImgDataType         = "image"
+	VideoDataType       = "video"
+	Region              = "cn-north-1"                    // Part number must be an integer between 1 and 10000, inclusive.
 	defaultChunkSize    = fs.SizeSuffix(1024 * 1024 * 20) // Part size should be in [100KB, 100M]，默认5m
 	minChunkSize        = 100 * fs.Kibi
 	maxChunkSize        = 100 * fs.Mebi
@@ -75,6 +72,7 @@ const (
 	durationInMinutes   = 30                              //文件链接有效时长，单位：分钟 可能需要修改
 )
 
+// DirectoryType represents a directory node type.
 const (
 	DirectoryType      = 1
 	FileType           = 2
@@ -86,6 +84,7 @@ const (
 	MeetingMinutesType = 8
 )
 
+// FileNodeType represents a File node type.
 var FileNodeType = map[int]string{
 	1: "directory",
 	2: "file",
@@ -118,7 +117,7 @@ func init() {
 			},
 			{
 				Name:      "downloadApi",
-				Default:   downloadApi,
+				Default:   downloadAPI,
 				Help:      "get_file_url,get_download_info",
 				Required:  true,
 				Sensitive: true,
@@ -164,7 +163,7 @@ func init() {
 // Options defines the configuration for this backend
 type Options struct {
 	Cookie            string               `config:"cookie"`
-	DownloadApi       string               `config:"downloadApi"`
+	DownloadAPI       string               `config:"downloadApi"`
 	UserID            string               `config:"user_id"` // only available during runtime
 	DeviceID          string               `config:"device_id"`
 	UserAgent         string               `config:"user_agent"`
@@ -191,7 +190,7 @@ type Fs struct {
 	tokenMu        *sync.Mutex // when renewing tokens
 	uploadToken    *api.UploadToken
 	tokenDispenser *pacer.TokenDispenser // control concurrency
-	userId         string
+	userID         string
 }
 
 // Object describes a pikpak object
@@ -292,21 +291,21 @@ func (f *Fs) shouldRetry(ctx context.Context, resp *http.Response, err error) (b
 }
 
 // errorHandler parses a non 2xx error response into an error
-func errorHandler(resp *http.Response) error {
-	// Decode error response
-	errResponse := new(api.Error)
-	err := rest.DecodeJSON(resp, &errResponse)
-	if err != nil {
-		fs.Debugf(nil, "Couldn't decode error response: %v", err)
-	}
-	if errResponse.Reason == "" {
-		errResponse.Reason = resp.Status
-	}
-	if errResponse.Code == 0 {
-		errResponse.Code = resp.StatusCode
-	}
-	return errResponse
-}
+// func errorHandler(resp *http.Response) error {
+// 	// Decode error response
+// 	errResponse := new(api.Error)
+// 	err := rest.DecodeJSON(resp, &errResponse)
+// 	if err != nil {
+// 		fs.Debugf(nil, "Couldn't decode error response: %v", err)
+// 	}
+// 	if errResponse.Reason == "" {
+// 		errResponse.Reason = resp.Status
+// 	}
+// 	if errResponse.Code == 0 {
+// 		errResponse.Code = resp.StatusCode
+// 	}
+// 	return errResponse
+// }
 
 // getClient makes an http client according to the options
 func getClient(ctx context.Context, opt *Options) *http.Client {
@@ -406,12 +405,12 @@ func newFs(ctx context.Context, name, path string, m configmap.Mapper) (*Fs, err
 		return nil, err
 	}
 
-	if f.userId == "" {
+	if f.userID == "" {
 		userInfo, err := f.getUserInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
-		f.userId = strconv.FormatInt(userInfo.UserID, 10)
+		f.userID = strconv.FormatInt(userInfo.UserID, 10)
 	}
 
 	if f.uploadToken == nil {
@@ -559,28 +558,28 @@ type listAllFn func(*api.File) bool
 // If the user fn ever returns true then it early exits with found = true
 func (f *Fs) listAll(ctx context.Context, dirID string, fn listAllFn) (found bool, err error) {
 	cursor := ""
-	page_size := 30
+	pageSize := 30
 	opts := rest.Opts{
 		Method: "POST",
 		Path:   "/samantha/aispace/node_info",
 	}
-	file_list_req := api.FileListRequest{
-		NodeId:       dirID,
+	fileListReq := api.FileListRequest{
+		NodeID:       dirID,
 		NeedFullPath: true,
 	}
 OUTER:
 	for {
 		// 如果有游标，则设置游标和大小
 		if cursor != "" {
-			file_list_req.Cursor = &cursor
-			file_list_req.Size = &page_size
+			fileListReq.Cursor = &cursor
+			fileListReq.Size = &pageSize
 		} else {
-			file_list_req.NeedFullPath = false
+			fileListReq.NeedFullPath = false
 		}
 		var info api.NodeInfoResp
 		var resp *http.Response
 		err = f.pacer.Call(func() (bool, error) {
-			resp, err = f.rst.CallJSON(ctx, &opts, &file_list_req, &info)
+			resp, err = f.rst.CallJSON(ctx, &opts, &fileListReq, &info)
 			if err != nil {
 				return false, fmt.Errorf("error in CallJSON: %w", err)
 			}
@@ -720,7 +719,7 @@ func (f *Fs) deleteObjects(ctx context.Context, IDs []string) (err error) {
 	var batchNodeList api.BatchNodeList
 	// 将ID数组中的值赋值到 NodeList
 	for _, id := range IDs {
-		batchNodeList.NodeList = append(batchNodeList.NodeList, api.ID{Id: id})
+		batchNodeList.NodeList = append(batchNodeList.NodeList, api.ID{ID: id})
 	}
 	if err := f.requestDeleteAction(ctx, &batchNodeList); err != nil {
 		return fmt.Errorf("delete object failed: %w", err)
@@ -815,10 +814,10 @@ func (f *Fs) moveObjects(ctx context.Context, IDs []string, srcID string, dirID 
 	var moveNodeList api.MoveNodeList
 	// 将ID数组中的值赋值到 NodeList
 	for _, id := range IDs {
-		moveNodeList.NodeList = append(moveNodeList.NodeList, api.ID{Id: id})
+		moveNodeList.NodeList = append(moveNodeList.NodeList, api.ID{ID: id})
 	}
-	moveNodeList.CurrentParentId = srcID
-	moveNodeList.TargetParnetId = dirID
+	moveNodeList.CurrentParentID = srcID
+	moveNodeList.TargetParnetID = dirID
 
 	if err := f.requestMoveAction(ctx, "batchMove", &moveNodeList); err != nil {
 		return fmt.Errorf("move object failed: %w", err)
@@ -1153,27 +1152,23 @@ func (f *Fs) upload(ctx context.Context, o *Object, in io.Reader, leaf, dirID, g
 			ParentID: node.ParentID,
 		}
 		return &file, nil
-	} else {
-		ups, err := f.requestUploadByMultipart(ctx, &uploadConfig, in, fileName, dirID, size, dataType, mimeType, options...)
-		if err != nil {
-			return nil, err
-		}
-		node := ups.Data.NodeList[0]
-
-		file := api.File{
-			ID:       node.ID,
-			Name:     node.Name,
-			Key:      node.Key,
-			NodeType: node.NodeType,
-			Size:     size,
-			ParentID: node.ParentID,
-		}
-		return &file, nil
-
 	}
 
-	// 大文件使用分片上传
-	return o.file, nil
+	ups, err := f.requestUploadByMultipart(ctx, &uploadConfig, in, fileName, dirID, size, dataType, mimeType, options...)
+	if err != nil {
+		return nil, err
+	}
+	node := ups.Data.NodeList[0]
+
+	file := api.File{
+		ID:       node.ID,
+		Name:     node.Name,
+		Key:      node.Key,
+		NodeType: node.NodeType,
+		Size:     size,
+		ParentID: node.ParentID,
+	}
+	return &file, nil
 
 }
 

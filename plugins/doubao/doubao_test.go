@@ -1,4 +1,4 @@
-// Test PikPak filesystem interface
+// Test Doubao filesystem interface
 package doubao
 
 import (

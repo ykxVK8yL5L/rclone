@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -25,37 +24,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rclone/rclone/backend/doubao/api"
 	"github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/accounting"
 	"github.com/rclone/rclone/lib/rest"
+	"github.com/rclone/rclone/plugins/doubao/api"
 )
 
 // Globals
 const (
 	cachePrefix = "rclone-doubao-gcid-"
 )
-
-// requestDecompress requests decompress of compressed files
-func (f *Fs) requestDecompress(ctx context.Context, file *api.File, password string) (info *api.DecompressResult, err error) {
-	req := &api.RequestDecompress{
-		Gcid:          file.ID,
-		Password:      password,
-		FileID:        file.ID,
-		Files:         []*api.FileInArchive{},
-		DefaultParent: true,
-	}
-	opts := rest.Opts{
-		Method: "POST",
-		Path:   "/decompress/v1/decompress",
-	}
-	var resp *http.Response
-	err = f.pacer.Call(func() (bool, error) {
-		resp, err = f.rst.CallJSON(ctx, &opts, &req, &info)
-		return f.shouldRetry(ctx, resp, err)
-	})
-	return
-}
 
 // requestBatchAction requests batch actions to API
 //
@@ -153,30 +131,13 @@ func (f *Fs) requestCreateDirAction(ctx context.Context, req *api.CreateDirNodeR
 	return info, nil
 }
 
-func (f *Fs) requestNewTask(ctx context.Context, req *api.RequestNewTask) (info *api.Task, err error) {
-	opts := rest.Opts{
-		Method: "POST",
-		Path:   "/drive/v1/files",
-	}
-	var newTask api.NewTask
-	var resp *http.Response
-	err = f.pacer.Call(func() (bool, error) {
-		resp, err = f.rst.CallJSON(ctx, &opts, &req, &newTask)
-		return f.shouldRetry(ctx, resp, err)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return newTask.Task, nil
-}
-
 func (f *Fs) requestUpload(ctx context.Context, config *api.UploadConfig, in io.Reader, fileName string, dirID string, size int64, dataType string, mimeType string, options ...fs.OpenOption) (noderes *api.UploadNodeResp, rerr error) {
 	var err error
 	// 计算CRC32
 	// 创建 CRC32 哈希实例
 	data, err := io.ReadAll(in)
 	if err != nil {
-		log.Fatal("Error reading input:", err)
+		fs.Fatal("Error reading input:", err.Error())
 	}
 	crc32Hash := crc32.NewIEEE()
 	crc32Hash.Write(data)
@@ -186,14 +147,14 @@ func (f *Fs) requestUpload(ctx context.Context, config *api.UploadConfig, in io.
 	uploadNode := config.InnerUploadAddress.UploadNodes[0]
 	storeInfo := uploadNode.StoreInfos[0]
 	//uploadUrl := fmt.Sprintf("https://%s/upload/v1/%s", uploadNode.UploadHost, storeInfo.StoreURI)
-	baseUrl := fmt.Sprintf("https://%s", uploadNode.UploadHost)
-	pathUrl := fmt.Sprintf("/upload/v1/%s", storeInfo.StoreURI)
+	baseURL := fmt.Sprintf("https://%s", uploadNode.UploadHost)
+	pathURL := fmt.Sprintf("/upload/v1/%s", storeInfo.StoreURI)
 
 	extraHeaders := map[string]string{
 		"Referer":             rootURL + "/",
 		"Origin":              rootURL,
 		"User-Agent":          defaultUserAgent,
-		"X-Storage-U":         f.userId,
+		"X-Storage-U":         f.userID,
 		"Authorization":       storeInfo.Auth,
 		"Content-Type":        "application/octet-stream",
 		"Content-Crc32":       crc32Value,
@@ -207,8 +168,8 @@ func (f *Fs) requestUpload(ctx context.Context, config *api.UploadConfig, in io.
 
 	newReader := bytes.NewReader(data)
 	opts := rest.Opts{
-		RootURL:      baseUrl,
-		Path:         pathUrl,
+		RootURL:      baseURL,
+		Path:         pathURL,
 		Method:       "POST",
 		ExtraHeaders: extraHeaders,
 		Body:         newReader,
@@ -230,7 +191,7 @@ func (f *Fs) requestUpload(ctx context.Context, config *api.UploadConfig, in io.
 	bytes, _ := io.ReadAll(resp.Body)
 	err = json.Unmarshal(bytes, &info)
 	if err != nil {
-		log.Fatalf("格式化响应到实例错误: %v", err)
+		fs.Fatalf("格式化响应到实例错误: %v", err.Error())
 		return nil, err
 	}
 
@@ -252,9 +213,9 @@ func (f *Fs) requestUploadByMultipart(ctx context.Context, config *api.UploadCon
 	// 构建请求路径
 	uploadNode := config.InnerUploadAddress.UploadNodes[0]
 	storeInfo := uploadNode.StoreInfos[0]
-	uploadUrl := fmt.Sprintf("https://%s/upload/v1/%s", uploadNode.UploadHost, storeInfo.StoreURI)
+	uploadURL := fmt.Sprintf("https://%s/upload/v1/%s", uploadNode.UploadHost, storeInfo.StoreURI)
 	// 初始化分片上传
-	uploadID, err := f.initMultipartUpload(ctx, config, uploadUrl, storeInfo)
+	uploadID, err := f.initMultipartUpload(ctx, config, uploadURL, storeInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize multipart upload: %w", err)
 	}
@@ -313,8 +274,8 @@ outer:
 
 			// 构建请求路径
 			//uploadUrl := fmt.Sprintf("https://%s/upload/v1/%s", uploadNode.UploadHost, storeInfo.StoreURI)
-			baseUrl := fmt.Sprintf("https://%s", uploadNode.UploadHost)
-			pathUrl := fmt.Sprintf("/upload/v1/%s", storeInfo.StoreURI)
+			baseURL := fmt.Sprintf("https://%s", uploadNode.UploadHost)
+			pathURL := fmt.Sprintf("/upload/v1/%s", storeInfo.StoreURI)
 
 			params := url.Values{}
 			params.Set("uploadid", uploadID)
@@ -325,7 +286,7 @@ outer:
 				"Referer":             rootURL + "/",
 				"Origin":              rootURL,
 				"User-Agent":          defaultUserAgent,
-				"X-Storage-U":         f.userId,
+				"X-Storage-U":         f.userID,
 				"Authorization":       storeInfo.Auth,
 				"Content-Type":        "application/octet-stream",
 				"Content-Crc32":       crc32Value,
@@ -336,8 +297,8 @@ outer:
 			newReader := bytes.NewReader(buf)
 			opts := rest.Opts{
 				Method:        "POST",
-				RootURL:       baseUrl,
-				Path:          pathUrl,
+				RootURL:       baseURL,
+				Path:          pathURL,
 				ExtraHeaders:  extraHeaders,
 				Body:          newReader,
 				Parameters:    params,
@@ -412,7 +373,7 @@ outer:
 	}
 
 	// 完成上传-分片合并
-	if err = f.completeMultipartUpload(ctx, config, uploadUrl, uploadID, parts); err != nil {
+	if err = f.completeMultipartUpload(ctx, config, uploadURL, uploadID, parts); err != nil {
 		return nil, fmt.Errorf("failed to complete multipart upload: %w", err)
 	}
 	// 提交上传
@@ -430,7 +391,7 @@ outer:
 
 }
 
-func (f *Fs) completeMultipartUpload(ctx context.Context, config *api.UploadConfig, uploadUrl, uploadID string, parts []api.UploadPart) error {
+func (f *Fs) completeMultipartUpload(ctx context.Context, config *api.UploadConfig, uploadURL, uploadID string, parts []api.UploadPart) error {
 	var err error
 	storeInfo := config.InnerUploadAddress.UploadNodes[0].StoreInfos[0]
 	body := _convertUploadParts(parts)
@@ -438,15 +399,15 @@ func (f *Fs) completeMultipartUpload(ctx context.Context, config *api.UploadConf
 	// 构建请求路径
 	uploadNode := config.InnerUploadAddress.UploadNodes[0]
 	//uploadUrl := fmt.Sprintf("https://%s/upload/v1/%s", uploadNode.UploadHost, storeInfo.StoreURI)
-	baseUrl := fmt.Sprintf("https://%s", uploadNode.UploadHost)
-	pathUrl := fmt.Sprintf("/upload/v1/%s", storeInfo.StoreURI)
+	baseURL := fmt.Sprintf("https://%s", uploadNode.UploadHost)
+	pathURL := fmt.Sprintf("/upload/v1/%s", storeInfo.StoreURI)
 
 	extraHeaders := map[string]string{
-		"Host":          strings.Split(uploadUrl, "/")[2],
-		"Referer":       baseUrl + "/",
-		"Origin":        baseUrl,
+		"Host":          strings.Split(uploadURL, "/")[2],
+		"Referer":       baseURL + "/",
+		"Origin":        baseURL,
 		"User-Agent":    f.opt.UserAgent,
-		"X-Storage-U":   f.userId,
+		"X-Storage-U":   f.userID,
 		"Authorization": storeInfo.Auth,
 		"Content-Type":  "text/plain;charset=UTF-8",
 	}
@@ -458,8 +419,8 @@ func (f *Fs) completeMultipartUpload(ctx context.Context, config *api.UploadConf
 
 	newReader := strings.NewReader(body)
 	opts := rest.Opts{
-		RootURL:      baseUrl,
-		Path:         pathUrl,
+		RootURL:      baseURL,
+		Path:         pathURL,
 		Method:       "POST",
 		ExtraHeaders: extraHeaders,
 		Body:         newReader,
@@ -493,7 +454,7 @@ func (f *Fs) completeMultipartUpload(ctx context.Context, config *api.UploadConf
 
 func (f *Fs) commitMultipartUpload(ctx context.Context, uploadConfig *api.UploadConfig) error {
 	var err error
-	uploadUrl := f.uploadToken.Samantha.UploadInfo.VideoHost
+	uploadURL := f.uploadToken.Samantha.UploadInfo.VideoHost
 
 	params := map[string]string{
 		"Action":    "CommitUploadInner",
@@ -524,13 +485,13 @@ func (f *Fs) commitMultipartUpload(ctx context.Context, uploadConfig *api.Upload
 
 	opts := rest.Opts{
 		Method:       "POST",
-		RootURL:      uploadUrl,
+		RootURL:      uploadURL,
 		Parameters:   paramsValues,
 		ExtraHeaders: extraHeaders,
 		Body:         newReader,
 	}
 
-	_, err = f.requestApi(ctx, opts, tokenType, &videoCommitUploadResp, nil)
+	_, err = f.requestAPI(ctx, opts, tokenType, &videoCommitUploadResp, nil)
 
 	if err != nil {
 		return err
@@ -556,17 +517,17 @@ func _convertUploadParts(parts []api.UploadPart) string {
 	return result.String()
 }
 
-func (f *Fs) initMultipartUpload(ctx context.Context, config *api.UploadConfig, uploadUrl string, storeInfo api.StoreInfo) (uploadId string, err error) {
+func (f *Fs) initMultipartUpload(ctx context.Context, config *api.UploadConfig, uploadURL string, storeInfo api.StoreInfo) (uploadID string, err error) {
 	// 构建请求路径
 	uploadNode := config.InnerUploadAddress.UploadNodes[0]
-	baseUrl := fmt.Sprintf("https://%s", uploadNode.UploadHost)
-	pathUrl := fmt.Sprintf("/upload/v1/%s", storeInfo.StoreURI)
+	baseURL := fmt.Sprintf("https://%s", uploadNode.UploadHost)
+	pathURL := fmt.Sprintf("/upload/v1/%s", storeInfo.StoreURI)
 	extraHeaders := map[string]string{
-		"Host":          strings.Split(uploadUrl, "/")[2],
-		"Referer":       baseUrl + "/",
-		"Origin":        baseUrl,
+		"Host":          strings.Split(uploadURL, "/")[2],
+		"Referer":       baseURL + "/",
+		"Origin":        baseURL,
 		"User-Agent":    f.opt.UserAgent,
-		"X-Storage-U":   f.userId,
+		"X-Storage-U":   f.userID,
 		"Authorization": storeInfo.Auth,
 		"Content-Type":  "text/plain;charset=UTF-8",
 	}
@@ -576,9 +537,9 @@ func (f *Fs) initMultipartUpload(ctx context.Context, config *api.UploadConfig, 
 	params.Set("phase", "init")
 
 	opts := rest.Opts{
-		RootURL:      baseUrl,
+		RootURL:      baseURL,
 		Method:       "POST",
-		Path:         pathUrl,
+		Path:         pathURL,
 		ExtraHeaders: extraHeaders,
 		Parameters:   params,
 	}
@@ -598,14 +559,14 @@ func (f *Fs) initMultipartUpload(ctx context.Context, config *api.UploadConfig, 
 	err = json.Unmarshal(bytes, &info)
 
 	if err != nil {
-		return uploadId, err
+		return uploadID, err
 	}
 
 	if info.Code != 2000 {
-		return uploadId, fmt.Errorf("init upload failed: %s", info.Message)
+		return uploadID, fmt.Errorf("init upload failed: %s", info.Message)
 	}
 
-	return info.Data.UploadId, nil
+	return info.Data.UploadID, nil
 }
 
 // uploadNode 上传 文件信息
@@ -649,7 +610,7 @@ func (f *Fs) uploadNode(ctx context.Context, uploadConfig *api.UploadConfig, dir
 		NodeContent: &map[string]string{},
 		Size:        &fileSize,
 	})
-	createDirNodeList.RequestId = requuid
+	createDirNodeList.RequestID = requuid
 
 	err = f.pacer.Call(func() (bool, error) {
 		resp, err = f.rst.CallJSON(ctx, &opts, &createDirNodeList, &info)
@@ -775,13 +736,13 @@ func (f *Fs) requestUploadConfig(ctx context.Context, config *api.UploadConfig, 
 	tokenType := dataType
 	// 配置参数函数
 	configureParams := func() (string, map[string]string) {
-		var uploadUrl string
+		var uploadURL string
 		var params map[string]string
 		// 根据数据类型设置不同的上传参数
 		switch dataType {
 		case VideoDataType:
 			// 音频/视频类型 - 使用uploadToken.Samantha的配置
-			uploadUrl = f.uploadToken.Samantha.UploadInfo.VideoHost
+			uploadURL = f.uploadToken.Samantha.UploadInfo.VideoHost
 			params = map[string]string{
 				"Action":       "ApplyUploadInner",
 				"Version":      "2020-11-19",
@@ -794,7 +755,7 @@ func (f *Fs) requestUploadConfig(ctx context.Context, config *api.UploadConfig, 
 			}
 		case ImgDataType, FileDataType:
 			// 图片或其他文件类型 - 使用uploadToken.Alice对应配置
-			uploadUrl = "https://" + f.uploadToken.Alice[dataType].UploadHost
+			uploadURL = "https://" + f.uploadToken.Alice[dataType].UploadHost
 			params = map[string]string{
 				"Action":        "ApplyImageUpload",
 				"Version":       "2018-08-01",
@@ -805,10 +766,10 @@ func (f *Fs) requestUploadConfig(ctx context.Context, config *api.UploadConfig, 
 				"s":             randomString(),
 			}
 		}
-		return uploadUrl, params
+		return uploadURL, params
 	}
 	// 获取初始参数
-	uploadUrl, params := configureParams()
+	uploadURL, params := configureParams()
 	tokenRefreshed := false
 	var configResp api.UploadConfigResp
 	paramsValues := url.Values{}
@@ -822,12 +783,12 @@ func (f *Fs) requestUploadConfig(ctx context.Context, config *api.UploadConfig, 
 
 	opts := rest.Opts{
 		Method:       "GET",
-		RootURL:      uploadUrl,
+		RootURL:      uploadURL,
 		Parameters:   paramsValues,
 		ExtraHeaders: extraHeaders,
 	}
 
-	_, err = f.requestApi(ctx, opts, tokenType, &configResp, nil)
+	_, err = f.requestAPI(ctx, opts, tokenType, &configResp, nil)
 
 	if err != nil {
 		return err
@@ -845,8 +806,8 @@ func (f *Fs) requestUploadConfig(ctx context.Context, config *api.UploadConfig, 
 			return fmt.Errorf("failed to refresh token: %w", err)
 		}
 		f.uploadToken = newToken
-		tokenRefreshed = true
-		uploadUrl, params = configureParams()
+		// tokenRefreshed = true
+		// uploadURL, params = configureParams()
 
 		return errors.New("token refreshed, retry needed")
 	}
@@ -855,7 +816,7 @@ func (f *Fs) requestUploadConfig(ctx context.Context, config *api.UploadConfig, 
 
 }
 
-func (f *Fs) requestApi(ctx context.Context, opts rest.Opts, tokenType string, resp interface{}, callback api.ReqCallback) ([]byte, error) {
+func (f *Fs) requestAPI(ctx context.Context, opts rest.Opts, tokenType string, resp interface{}, callback api.ReqCallback) ([]byte, error) {
 
 	var err error
 
@@ -916,7 +877,7 @@ func (f *Fs) requestApi(ctx context.Context, opts rest.Opts, tokenType string, r
 	if resp != nil {
 		err = json.Unmarshal(data, &resp)
 		if err != nil {
-			log.Fatalf("格式化响应到实例错误: %v", err)
+			fs.Fatalf("格式化响应到实例错误: %v", err.Error())
 			return nil, err
 		}
 	}
@@ -925,22 +886,22 @@ func (f *Fs) requestApi(ctx context.Context, opts rest.Opts, tokenType string, r
 
 }
 
-func (f *Fs) signRequest(req *rest.Opts, method, tokenType, uploadUrl string) error {
-	parsedUrl, err := url.Parse(uploadUrl)
+func (f *Fs) signRequest(req *rest.Opts, method, tokenType, uploadURL string) error {
+	parsedURL, err := url.Parse(uploadURL)
 	if err != nil {
 		return fmt.Errorf("invalid URL format: %w", err)
 	}
 
-	var accessKeyId, secretAccessKey, sessionToken string
+	var accessKeyID, secretAccessKey, sessionToken string
 	var serviceName string
 
 	if tokenType == VideoDataType {
-		accessKeyId = f.uploadToken.Samantha.StsToken.AccessKeyID
+		accessKeyID = f.uploadToken.Samantha.StsToken.AccessKeyID
 		secretAccessKey = f.uploadToken.Samantha.StsToken.SecretAccessKey
 		sessionToken = f.uploadToken.Samantha.StsToken.SessionToken
 		serviceName = "vod"
 	} else {
-		accessKeyId = f.uploadToken.Alice[tokenType].Auth.AccessKeyID
+		accessKeyID = f.uploadToken.Alice[tokenType].Auth.AccessKeyID
 		secretAccessKey = f.uploadToken.Alice[tokenType].Auth.SecretAccessKey
 		sessionToken = f.uploadToken.Alice[tokenType].Auth.SessionToken
 		serviceName = "imagex"
@@ -972,7 +933,7 @@ func (f *Fs) signRequest(req *rest.Opts, method, tokenType, uploadUrl string) er
 		bodyHash = hashSHA256("")
 	}
 	// 创建规范请求
-	canonicalURI := parsedUrl.Path
+	canonicalURI := parsedURL.Path
 	if canonicalURI == "" {
 		canonicalURI = "/"
 	}
@@ -1010,7 +971,7 @@ func (f *Fs) signRequest(req *rest.Opts, method, tokenType, uploadUrl string) er
 	authorizationHeader := fmt.Sprintf(
 		"%s Credential=%s/%s, SignedHeaders=%s, Signature=%s",
 		algorithm,
-		accessKeyId,
+		accessKeyID,
 		credentialScope,
 		signedHeaders,
 		signature,
@@ -1122,22 +1083,8 @@ func getSigningKey(secretKey, dateStamp, region, service string) []byte {
 	return kSigning
 }
 
-// requestNewFile requests a new api.NewFile and returns api.File
-func (f *Fs) requestNewFile(ctx context.Context, req *api.RequestNewFile) (info *api.NewFile, err error) {
-	opts := rest.Opts{
-		Method: "POST",
-		Path:   "/drive/v1/files",
-	}
-	var resp *http.Response
-	err = f.pacer.Call(func() (bool, error) {
-		resp, err = f.rst.CallJSON(ctx, &opts, &req, &info)
-		return f.shouldRetry(ctx, resp, err)
-	})
-	return
-}
-
 func (f *Fs) getFile(ctx context.Context, o *Object) (file *api.File, err error) {
-	switch f.opt.DownloadApi {
+	switch f.opt.DownloadAPI {
 	case "get_download_info":
 		opts := rest.Opts{
 			Method: "POST",
@@ -1167,9 +1114,9 @@ func (f *Fs) getFile(ctx context.Context, o *Object) (file *api.File, err error)
 		if err != nil {
 			return nil, err
 		}
-		var downloadUrl string
+		var downloadURL string
 		if len(info.Data.DownloadInfos) > 0 {
-			downloadUrl = info.Data.DownloadInfos[0].MainURL
+			downloadURL = info.Data.DownloadInfos[0].MainURL
 		} else {
 			return nil, errors.New("没有获取到下载链接")
 		}
@@ -1177,19 +1124,19 @@ func (f *Fs) getFile(ctx context.Context, o *Object) (file *api.File, err error)
 		currentTime := time.Now()
 		// 计算失效时间：当前时间加上有效期（分钟）
 		expireTime := currentTime.Add(time.Duration(f.opt.DurationInMinutes) * time.Minute)
-		o.file.Link = &api.Link{URL: fmt.Sprintf("%s&expireTime=%d", downloadUrl, expireTime.Unix()), Expire: api.Time(expireTime)}
+		o.file.Link = &api.Link{URL: fmt.Sprintf("%s&expireTime=%d", downloadURL, expireTime.Unix()), Expire: api.Time(expireTime)}
 		return o.file, nil
 	case "get_file_url":
 		switch o.file.NodeType {
 		case VideoType, AudioType:
-			var info api.GetVideoFileUrlResp
+			var info api.GetVideoFileURLResp
 			var resp *http.Response
 			opts := rest.Opts{
 				Method: "POST",
 				Path:   "/samantha/media/get_play_info",
 			}
 
-			req := api.GetVideoFileUrlRequest{
+			req := api.GetVideoFileURLRequest{
 				Key:    o.file.Key,
 				NodeID: o.id,
 			}
@@ -1205,26 +1152,26 @@ func (f *Fs) getFile(ctx context.Context, o *Object) (file *api.File, err error)
 			if err != nil {
 				return nil, err
 			}
-			var downloadUrl string
-			downloadUrl = info.Data.OriginalMediaInfo.MainURL
+			var downloadURL string
+			downloadURL = info.Data.OriginalMediaInfo.MainURL
 
 			// 获取当前时间
 			currentTime := time.Now()
 			// 计算失效时间：当前时间加上有效期（分钟）
 			expireTime := currentTime.Add(time.Duration(f.opt.DurationInMinutes) * time.Minute)
-			o.file.Link = &api.Link{URL: fmt.Sprintf("%s&expireTime=%d", downloadUrl, expireTime.Unix()), Expire: api.Time(expireTime)}
+			o.file.Link = &api.Link{URL: fmt.Sprintf("%s&expireTime=%d", downloadURL, expireTime.Unix()), Expire: api.Time(expireTime)}
 			return o.file, nil
 
 		default:
 
-			var info api.GetFileUrlResp
+			var info api.GetFileURLResp
 			var resp *http.Response
 			opts := rest.Opts{
 				Method: "POST",
 				Path:   "/alice/message/get_file_url",
 			}
 
-			req := api.GetFileUrlRequest{
+			req := api.GetFileURLRequest{
 				Uris: []string{o.file.Key},
 				Type: FileNodeType[o.file.NodeType],
 			}
@@ -1239,9 +1186,9 @@ func (f *Fs) getFile(ctx context.Context, o *Object) (file *api.File, err error)
 			if err != nil {
 				return nil, err
 			}
-			var downloadUrl string
+			var downloadURL string
 			if len(info.Data.FileUrls) > 0 {
-				downloadUrl = info.Data.FileUrls[0].MainURL
+				downloadURL = info.Data.FileUrls[0].MainURL
 			} else {
 				return nil, errors.New("没有获取到下载链接")
 			}
@@ -1250,29 +1197,12 @@ func (f *Fs) getFile(ctx context.Context, o *Object) (file *api.File, err error)
 			// 计算失效时间：当前时间加上有效期（分钟）
 
 			expireTime := currentTime.Add(time.Duration(f.opt.DurationInMinutes) * time.Minute)
-			o.file.Link = &api.Link{URL: fmt.Sprintf("%s&expireTime=%d", downloadUrl, expireTime.Unix()), Expire: api.Time(expireTime)}
+			o.file.Link = &api.Link{URL: fmt.Sprintf("%s&expireTime=%d", downloadURL, expireTime.Unix()), Expire: api.Time(expireTime)}
 			return o.file, nil
 		}
 	default:
 		return nil, errors.New("没有获取到下载链接")
 	}
-}
-
-// patchFile updates attributes of the file by ID
-//
-// currently known patchable fields are
-// * name
-func (f *Fs) patchFile(ctx context.Context, ID string, req *api.File) (info *api.File, err error) {
-	opts := rest.Opts{
-		Method: "PATCH",
-		Path:   "/drive/v1/files/" + ID,
-	}
-	var resp *http.Response
-	err = f.pacer.Call(func() (bool, error) {
-		resp, err = f.rst.CallJSON(ctx, &opts, &req, &info)
-		return f.shouldRetry(ctx, resp, err)
-	})
-	return
 }
 
 // getTask gets api.Task from API for the ID passed
@@ -1304,25 +1234,6 @@ func (f *Fs) waitTask(ctx context.Context, ID string) (err error) {
 		}
 		return fmt.Errorf("can't verify the task is completed: %#v", info)
 	}
-	return
-}
-
-// deleteTask remove a task having the specified ID
-func (f *Fs) deleteTask(ctx context.Context, ID string, deleteFiles bool) (err error) {
-	params := url.Values{}
-	params.Set("delete_files", strconv.FormatBool(deleteFiles))
-	params.Set("task_ids", ID)
-	opts := rest.Opts{
-		Method:     "DELETE",
-		Path:       "/drive/v1/tasks",
-		Parameters: params,
-		NoResponse: true,
-	}
-	var resp *http.Response
-	err = f.pacer.Call(func() (bool, error) {
-		resp, err = f.rst.CallJSON(ctx, &opts, nil, nil)
-		return f.shouldRetry(ctx, resp, err)
-	})
 	return
 }
 
@@ -1547,7 +1458,7 @@ func newDoubaoClient(c *http.Client, opt *Options) *doubaoClient {
 	client := rest.NewClient(c).SetRoot("https://www.doubao.com")
 	for key, val := range map[string]string{
 		"Referer": "https://www.doubao.com",
-		"Cookie":  fmt.Sprintf("%s", opt.Cookie),
+		"Cookie":  opt.Cookie,
 	} {
 		client.SetHeader(key, val)
 	}

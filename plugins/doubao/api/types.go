@@ -96,6 +96,7 @@ func (e *Error) Error() string {
 // Check Error satisfies the error interface
 var _ error = (*Error)(nil)
 
+// ReqCallback 请求回调函数
 type ReqCallback func(req *rest.Opts)
 
 // ------------------------------------------------------------
@@ -334,7 +335,7 @@ type ArchiveFileList struct {
 	Files       []*FileInArchive `json:"files,omitempty"`
 }
 
-// ==============================
+// FileNodeType represents the  structure for FileNodeType operations.
 var FileNodeType = map[int]string{
 	1: "directory",
 	2: "file",
@@ -346,42 +347,53 @@ var FileNodeType = map[int]string{
 	8: "meeting_minutes",
 }
 
+// FileListRequest represents the request structure for file list operations.
 type FileListRequest struct {
-	NodeId       string  `json:"node_id"`
+	NodeID       string  `json:"node_id"`
 	Cursor       *string `json:"cursor,omitempty"`
 	Size         *int    `json:"size,omitempty"`
 	NeedFullPath bool    `json:"need_full_path"`
 }
 
+// FileLinkRequest 文件链接请求
 type FileLinkRequest struct {
 	Requests []NodeID `json:"requests"`
 }
 
+// NodeID node的id
 type NodeID struct {
 	NodeID string `json:"node_id"`
 }
+
+// NodeName node的name
 type NodeName struct {
 	NodeName string `json:"node_name"`
 }
 
+// ID 文件id
 type ID struct {
-	Id string `json:"id"`
+	ID string `json:"id"`
 }
+
+// BatchNodeList 批量操作
 type BatchNodeList struct {
 	NodeList []ID `json:"node_list"`
 }
 
+// MoveNodeList 移动请求
 type MoveNodeList struct {
 	NodeList        []ID   `json:"node_list"`
-	CurrentParentId string `json:"current_parent_id"`
-	TargetParnetId  string `json:"target_parent_id"`
+	CurrentParentID string `json:"current_parent_id"`
+	TargetParnetID  string `json:"target_parent_id"`
 }
 
+// RenameNodeRequest 重命名请求
 type RenameNodeRequest struct {
 	NodeID   string `json:"node_id"`
 	NodeName string `json:"node_name"`
 }
 
+// CreateDirNode 新建请求
 type CreateDirNode struct {
 	LocalID  string `json:"local_id"`
 	Name     string `json:"name"`
@@ -389,15 +401,18 @@ type CreateDirNode struct {
 	NodeType int    `json:"node_type"`
 }
 
+// CreateDirNodeRequest 新建目录请求
 type CreateDirNodeRequest struct {
 	NodeList []CreateDirNode `json:"node_list"`
 }
 
+// CreateNodeRequest 新建node请求
 type CreateNodeRequest struct {
 	NodeList  []CreateNode `json:"node_list"`
-	RequestId string       `json:"request_id"`
+	RequestID string       `json:"request_id"`
 }
 
+// CreateNode 上传文件返回的node信息
 type CreateNode struct {
 	LocalID     string             `json:"local_id"`
 	Key         string             `json:"key"`
@@ -408,6 +423,7 @@ type CreateNode struct {
 	Size        *int64             `json:"size"`
 }
 
+// CreateDirNodeRes 上传文件返回的node信息
 type CreateDirNodeRes struct {
 	LocalID     string             `json:"local_id"`
 	ID          string             `json:"id"`
@@ -418,6 +434,8 @@ type CreateDirNodeRes struct {
 	NodeContent *map[string]string `json:"node_content"`
 	Size        *int64             `json:"size"`
 }
+
+// CreateDirNodeResponse 创建目录的响应信息
 type CreateDirNodeResponse struct {
 	BaseResp
 	Data struct {
@@ -425,21 +443,25 @@ type CreateDirNodeResponse struct {
 	} `json:"data"`
 }
 
-type GetFileUrlRequest struct {
+// GetFileURLRequest 获取文件链接的请求
+type GetFileURLRequest struct {
 	Uris []string `json:"uris"`
 	Type string   `json:"type"`
 }
 
-type GetVideoFileUrlRequest struct {
+// GetVideoFileURLRequest 获取视频文件链接的请求
+type GetVideoFileURLRequest struct {
 	Key    string `json:"key"`
 	NodeID string `json:"node_id"`
 }
 
+// BaseResp 基础响应信息
 type BaseResp struct {
 	Code int    `json:"code"`
 	Msg  string `json:"msg"`
 }
 
+// NodeInfoResp node响应信息
 type NodeInfoResp struct {
 	BaseResp
 	Data struct {
@@ -450,6 +472,7 @@ type NodeInfoResp struct {
 	} `json:"data"`
 }
 
+// File 文件响应信息
 type File struct {
 	ID                  string `json:"id"`
 	Name                string `json:"name"`
@@ -467,6 +490,7 @@ type File struct {
 	Link                *Link  `json:"link,omitempty"`
 }
 
+// GetDownloadInfoResp 获取文件下载信息响应
 type GetDownloadInfoResp struct {
 	BaseResp
 	Data struct {
@@ -478,7 +502,8 @@ type GetDownloadInfoResp struct {
 	} `json:"data"`
 }
 
-type GetFileUrlResp struct {
+// GetFileURLResp 获取文件url信息响应
+type GetFileURLResp struct {
 	BaseResp
 	Data struct {
 		FileUrls []struct {
@@ -489,7 +514,8 @@ type GetFileUrlResp struct {
 	} `json:"data"`
 }
 
-type GetVideoFileUrlResp struct {
+// GetVideoFileURLResp 获取文件url信息响应
+type GetVideoFileURLResp struct {
 	BaseResp
 	Data struct {
 		MediaType string `json:"media_type"`
@@ -522,6 +548,7 @@ type GetVideoFileUrlResp struct {
 	} `json:"data"`
 }
 
+// UploadNodeResp 上传结果node信息响应
 type UploadNodeResp struct {
 	BaseResp
 	Data struct {
@@ -537,17 +564,26 @@ type UploadNodeResp struct {
 	} `json:"data"`
 }
 
+// UserInfoResp 用户响应信息
 type UserInfoResp struct {
 	Data    UserInfo `json:"data"`
 	Message string   `json:"message"`
 }
+
+// AppUserInfo APP用户响应信息
 type AppUserInfo struct {
 	BuiAuditInfo string `json:"bui_audit_info"`
 }
+
+// AuditInfo AuditInfo
 type AuditInfo struct {
 }
+
+// Details 详细信息
 type Details struct {
 }
+
+// BuiAuditInfo 不想注释了，就是返回内容
 type BuiAuditInfo struct {
 	AuditInfo      AuditInfo `json:"audit_info"`
 	IsAuditing     bool      `json:"is_auditing"`
@@ -556,6 +592,8 @@ type BuiAuditInfo struct {
 	UnpassReason   string    `json:"unpass_reason"`
 	Details        Details   `json:"details"`
 }
+
+// Connects 不想注释了，就是返回内容
 type Connects struct {
 	Platform           string `json:"platform"`
 	ProfileImageURL    string `json:"profile_image_url"`
@@ -570,12 +608,16 @@ type Connects struct {
 	AccessToken        string `json:"access_token"`
 	OpenID             string `json:"open_id"`
 }
+
+// OperStaffRelationInfo 不想注释了，就是返回内容
 type OperStaffRelationInfo struct {
 	HasPassword               int    `json:"has_password"`
 	Mobile                    string `json:"mobile"`
 	SecOperStaffUserID        string `json:"sec_oper_staff_user_id"`
 	RelationMobileCountryCode int    `json:"relation_mobile_country_code"`
 }
+
+// UserInfo 不想注释了，就是返回内容
 type UserInfo struct {
 	AppID                 int                   `json:"app_id"`
 	AppUserInfo           AppUserInfo           `json:"app_user_info"`
@@ -649,16 +691,19 @@ type MediaUploadAuthToken struct {
 	} `json:"upload_info"`
 }
 
+// UploadAuthTokenResp 不想注释了，就是返回内容
 type UploadAuthTokenResp struct {
 	BaseResp
 	Data UploadAuthToken `json:"data"`
 }
 
+// MediaUploadAuthTokenResp 不想注释了，就是返回内容
 type MediaUploadAuthTokenResp struct {
 	BaseResp
 	Data MediaUploadAuthToken `json:"data"`
 }
 
+// ResponseMetadata 不想注释了，就是返回内容
 type ResponseMetadata struct {
 	RequestID string `json:"RequestId"`
 	Action    string `json:"Action"`
@@ -672,6 +717,7 @@ type ResponseMetadata struct {
 	} `json:"Error,omitempty"`
 }
 
+// UploadConfig 上传配置请求信息，分片上传时使用
 type UploadConfig struct {
 	UploadAddress         UploadAddress         `json:"UploadAddress"`
 	FallbackUploadAddress FallbackUploadAddress `json:"FallbackUploadAddress"`
@@ -680,6 +726,7 @@ type UploadConfig struct {
 	SDKParam              interface{}           `json:"SDKParam"`
 }
 
+// UploadConfigResp 上传配置返回信息，分片上传时使用
 type UploadConfigResp struct {
 	ResponseMetadata `json:"ResponseMetadata"`
 	Result           UploadConfig `json:"Result"`
@@ -744,7 +791,7 @@ type InnerUploadAddress struct {
 
 // UploadPart 上传分片信息
 type UploadPart struct {
-	UploadId   string `json:"uploadid,omitempty"`
+	UploadID   string `json:"uploadid,omitempty"`
 	PartNumber string `json:"part_number,omitempty"`
 	Crc32      string `json:"crc32,omitempty"`
 	Etag       string `json:"etag,omitempty"`
@@ -754,11 +801,12 @@ type UploadPart struct {
 // UploadResp 上传响应体
 type UploadResp struct {
 	Code       int        `json:"code"`
-	ApiVersion string     `json:"apiversion"`
+	APIVersion string     `json:"apiversion"`
 	Message    string     `json:"message"`
 	Data       UploadPart `json:"data"`
 }
 
+// VideoCommitUpload 提交视频上传信息请求
 type VideoCommitUpload struct {
 	Vid       string `json:"Vid"`
 	VideoMeta struct {
@@ -781,6 +829,7 @@ type VideoCommitUpload struct {
 	GetPosterMode string `json:"GetPosterMode"`
 }
 
+// VideoCommitUploadResp 提交视频上传信息响应
 type VideoCommitUploadResp struct {
 	ResponseMetadata ResponseMetadata `json:"ResponseMetadata"`
 	Result           struct {
@@ -789,6 +838,7 @@ type VideoCommitUploadResp struct {
 	} `json:"Result"`
 }
 
+// CommonResp 通用响应
 type CommonResp struct {
 	Code    int             `json:"code"`
 	Msg     string          `json:"msg,omitempty"`
