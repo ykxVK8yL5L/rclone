@@ -1025,3 +1025,9 @@ put them back in again.` >}}
 - hunshcn <hunsh.cn@gmail.com>
 - vastonus <vastonus@outlook.com>
 - Oleksandr Redko <oleksandr.red+github@gmail.com>
+- reddaisyy <reddaisy@outlook.jp>
+- viocha <viocha@qq.com>
+- Aneesh Agrawal <aneesh@anthropic.com>
+- divinity76 <hans@loltek.net>
+- Andrew Gunnerson <accounts+github@chiller3.com>
+- Lakshmi-Surekha <Lakshmi.Kovvuri@ibm.com>
