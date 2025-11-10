@@ -2902,101 +2902,118 @@ func (f *Fs) PublicLink(ctx context.Context, remote string, expire fs.Duration, 
 
 var commandHelp = []fs.CommandHelp{{
 	Name:  "restore",
-	Short: "Restore objects from GLACIER or INTELLIGENT-TIERING archive tier",
-	Long: `This command can be used to restore one or more objects from GLACIER to normal storage 
-or from INTELLIGENT-TIERING Archive Access / Deep Archive Access tier to the Frequent Access tier.
+	Short: "Restore objects from GLACIER or INTELLIGENT-TIERING archive tier.",
+	Long: `This command can be used to restore one or more objects from GLACIER to normal
+storage or from INTELLIGENT-TIERING Archive Access / Deep Archive Access tier
+to the Frequent Access tier.
 
-Usage Examples:
+Usage examples:
 
-    rclone backend restore s3:bucket/path/to/ --include /object -o priority=PRIORITY -o lifetime=DAYS
-    rclone backend restore s3:bucket/path/to/directory -o priority=PRIORITY -o lifetime=DAYS
-    rclone backend restore s3:bucket -o priority=PRIORITY -o lifetime=DAYS
-    rclone backend restore s3:bucket/path/to/directory -o priority=PRIORITY
+` + "```console" + `
+rclone backend restore s3:bucket/path/to/ --include /object -o priority=PRIORITY -o lifetime=DAYS
+rclone backend restore s3:bucket/path/to/directory -o priority=PRIORITY -o lifetime=DAYS
+rclone backend restore s3:bucket -o priority=PRIORITY -o lifetime=DAYS
+rclone backend restore s3:bucket/path/to/directory -o priority=PRIORITY
+` + "```" + `
 
-This flag also obeys the filters. Test first with --interactive/-i or --dry-run flags
+This flag also obeys the filters. Test first with --interactive/-i or --dry-run
+flags.
 
-    rclone --interactive backend restore --include "*.txt" s3:bucket/path -o priority=Standard -o lifetime=1
+` + "```console" + `
+rclone --interactive backend restore --include "*.txt" s3:bucket/path -o priority=Standard -o lifetime=1
+` + "```" + `
 
-All the objects shown will be marked for restore, then
+All the objects shown will be marked for restore, then:
 
-    rclone backend restore --include "*.txt" s3:bucket/path -o priority=Standard -o lifetime=1
+` + "```console" + `
+rclone backend restore --include "*.txt" s3:bucket/path -o priority=Standard -o lifetime=1
+` + "```" + `
 
 It returns a list of status dictionaries with Remote and Status
 keys. The Status will be OK if it was successful or an error message
 if not.
 
-    [
-        {
-            "Status": "OK",
-            "Remote": "test.txt"
-        },
-        {
-            "Status": "OK",
-            "Remote": "test/file4.txt"
-        }
-    ]
-
-`,
+` + "```json" + `
+[
+    {
+        "Status": "OK",
+        "Remote": "test.txt"
+    },
+    {
+        "Status": "OK",
+        "Remote": "test/file4.txt"
+    }
+]
+` + "```",
 	Opts: map[string]string{
-		"priority":    "Priority of restore: Standard|Expedited|Bulk",
-		"lifetime":    "Lifetime of the active copy in days, ignored for INTELLIGENT-TIERING storage",
+		"priority": "Priority of restore: Standard|Expedited|Bulk",
+		"lifetime": `Lifetime of the active copy in days, ignored for INTELLIGENT-TIERING
+storage.`,
 		"description": "The optional description for the job.",
 	},
 }, {
 	Name:  "restore-status",
-	Short: "Show the restore status for objects being restored from GLACIER or INTELLIGENT-TIERING storage",
-	Long: `This command can be used to show the status for objects being restored from GLACIER to normal storage
-or from INTELLIGENT-TIERING Archive Access / Deep Archive Access tier to the Frequent Access tier.
+	Short: "Show the status for objects being restored from GLACIER or INTELLIGENT-TIERING.",
+	Long: `This command can be used to show the status for objects being restored from
+GLACIER to normal storage or from INTELLIGENT-TIERING Archive Access / Deep
+Archive Access tier to the Frequent Access tier.
 
-Usage Examples:
+Usage examples:
 
-    rclone backend restore-status s3:bucket/path/to/object
-    rclone backend restore-status s3:bucket/path/to/directory
-    rclone backend restore-status -o all s3:bucket/path/to/directory
+` + "```console" + `
+rclone backend restore-status s3:bucket/path/to/object
+rclone backend restore-status s3:bucket/path/to/directory
+rclone backend restore-status -o all s3:bucket/path/to/directory
+` + "```" + `
 
 This command does not obey the filters.
 
-It returns a list of status dictionaries.
+It returns a list of status dictionaries:
 
-    [
-        {
-            "Remote": "file.txt",
-            "VersionID": null,
-            "RestoreStatus": {
-                "IsRestoreInProgress": true,
-                "RestoreExpiryDate": "2023-09-06T12:29:19+01:00"
-            },
-            "StorageClass": "GLACIER"
+` + "```json" + `
+[
+    {
+        "Remote": "file.txt",
+        "VersionID": null,
+        "RestoreStatus": {
+            "IsRestoreInProgress": true,
+            "RestoreExpiryDate": "2023-09-06T12:29:19+01:00"
         },
-        {
-            "Remote": "test.pdf",
-            "VersionID": null,
-            "RestoreStatus": {
-                "IsRestoreInProgress": false,
-                "RestoreExpiryDate": "2023-09-06T12:29:19+01:00"
-            },
-            "StorageClass": "DEEP_ARCHIVE"
+        "StorageClass": "GLACIER"
+    },
+    {
+        "Remote": "test.pdf",
+        "VersionID": null,
+        "RestoreStatus": {
+            "IsRestoreInProgress": false,
+            "RestoreExpiryDate": "2023-09-06T12:29:19+01:00"
         },
-        {
-            "Remote": "test.gz",
-            "VersionID": null,
-            "RestoreStatus": {
-                "IsRestoreInProgress": true,
-                "RestoreExpiryDate": "null"
-            },
-            "StorageClass": "INTELLIGENT_TIERING"
-        }
-    ]
-`,
+        "StorageClass": "DEEP_ARCHIVE"
+    },
+    {
+        "Remote": "test.gz",
+        "VersionID": null,
+        "RestoreStatus": {
+            "IsRestoreInProgress": true,
+            "RestoreExpiryDate": "null"
+        },
+        "StorageClass": "INTELLIGENT_TIERING"
+    }
+]
+` + "```",
 	Opts: map[string]string{
-		"all": "if set then show all objects, not just ones with restore status",
+		"all": "If set then show all objects, not just ones with restore status.",
 	},
 }, {
 	Name:  "list-multipart-uploads",
-	Short: "List the unfinished multipart uploads",
+	Short: "List the unfinished multipart uploads.",
 	Long: `This command lists the unfinished multipart uploads in JSON format.
 
-    rclone backend list-multipart s3:bucket/path/to/object
+Usage examples:
+
+` + "```console" + `
+rclone backend list-multipart s3:bucket/path/to/object
+` + "```" + `
 
 It returns a dictionary of buckets with values as lists of unfinished
 multipart uploads.
@@ -3004,44 +3021,47 @@ multipart uploads.
 You can call it with no bucket in which case it lists all bucket, with
 a bucket or with a bucket and path.
 
-    {
-      "rclone": [
+` + "```json" + `
+{
+    "rclone": [
         {
-          "Initiated": "2020-06-26T14:20:36Z",
-          "Initiator": {
-            "DisplayName": "XXX",
-            "ID": "arn:aws:iam::XXX:user/XXX"
-          },
-          "Key": "KEY",
-          "Owner": {
-            "DisplayName": null,
-            "ID": "XXX"
-          },
-          "StorageClass": "STANDARD",
-          "UploadId": "XXX"
+            "Initiated": "2020-06-26T14:20:36Z",
+            "Initiator": {
+                "DisplayName": "XXX",
+                "ID": "arn:aws:iam::XXX:user/XXX"
+            },
+            "Key": "KEY",
+            "Owner": {
+                "DisplayName": null,
+                "ID": "XXX"
+            },
+            "StorageClass": "STANDARD",
+            "UploadId": "XXX"
         }
-      ],
-      "rclone-1000files": [],
-      "rclone-dst": []
-    }
-
-`,
+    ],
+    "rclone-1000files": [],
+    "rclone-dst": []
+}
+` + "```",
 }, {
 	Name:  "cleanup",
 	Short: "Remove unfinished multipart uploads.",
 	Long: `This command removes unfinished multipart uploads of age greater than
 max-age which defaults to 24 hours.
 
-Note that you can use --interactive/-i or --dry-run with this command to see what
-it would do.
+Note that you can use --interactive/-i or --dry-run with this command to see
+what it would do.
 
-    rclone backend cleanup s3:bucket/path/to/object
-    rclone backend cleanup -o max-age=7w s3:bucket/path/to/object
+Usage examples:
 
-Durations are parsed as per the rest of rclone, 2h, 7d, 7w etc.
-`,
+` + "```console" + `
+rclone backend cleanup s3:bucket/path/to/object
+rclone backend cleanup -o max-age=7w s3:bucket/path/to/object
+` + "```" + `
+
+Durations are parsed as per the rest of rclone, 2h, 7d, 7w etc.`,
 	Opts: map[string]string{
-		"max-age": "Max age of upload to delete",
+		"max-age": "Max age of upload to delete.",
 	},
 }, {
 	Name:  "cleanup-hidden",
@@ -3049,11 +3069,14 @@ Durations are parsed as per the rest of rclone, 2h, 7d, 7w etc.
 	Long: `This command removes any old hidden versions of files
 on a versions enabled bucket.
 
-Note that you can use --interactive/-i or --dry-run with this command to see what
-it would do.
+Note that you can use --interactive/-i or --dry-run with this command to see
+what it would do.
 
-    rclone backend cleanup-hidden s3:bucket/path/to/dir
-`,
+Usage example:
+
+` + "```console" + `
+rclone backend cleanup-hidden s3:bucket/path/to/dir
+` + "```",
 }, {
 	Name:  "versioning",
 	Short: "Set/get versioning support for a bucket.",
@@ -3061,24 +3084,29 @@ it would do.
 passed and then returns the current versioning status for the bucket
 supplied.
 
-    rclone backend versioning s3:bucket # read status only
-    rclone backend versioning s3:bucket Enabled
-    rclone backend versioning s3:bucket Suspended
+Usage examples:
 
-It may return "Enabled", "Suspended" or "Unversioned". Note that once versioning
-has been enabled the status can't be set back to "Unversioned".
-`,
+` + "```console" + `
+rclone backend versioning s3:bucket # read status only
+rclone backend versioning s3:bucket Enabled
+rclone backend versioning s3:bucket Suspended
+` + "```" + `
+
+It may return "Enabled", "Suspended" or "Unversioned". Note that once
+versioning has been enabled the status can't be set back to "Unversioned".`,
 }, {
 	Name:  "set",
 	Short: "Set command for updating the config parameters.",
 	Long: `This set command can be used to update the config parameters
 for a running s3 backend.
 
-Usage Examples:
+Usage examples:
 
-    rclone backend set s3: [-o opt_name=opt_value] [-o opt_name2=opt_value2]
-    rclone rc backend/command command=set fs=s3: [-o opt_name=opt_value] [-o opt_name2=opt_value2]
-    rclone rc backend/command command=set fs=s3: -o session_token=X -o access_key_id=X -o secret_access_key=X
+` + "```console" + `
+rclone backend set s3: [-o opt_name=opt_value] [-o opt_name2=opt_value2]
+rclone rc backend/command command=set fs=s3: [-o opt_name=opt_value] [-o opt_name2=opt_value2]
+rclone rc backend/command command=set fs=s3: -o session_token=X -o access_key_id=X -o secret_access_key=X
+` + "```" + `
 
 The option keys are named as they are in the config file.
 
@@ -3086,8 +3114,7 @@ This rebuilds the connection to the s3 backend when it is called with
 the new parameters. Only new parameters need be passed as the values
 will default to those currently in use.
 
-It doesn't return anything.
-`,
+It doesn't return anything.`,
 }}
 
 // Command the backend to run a named command

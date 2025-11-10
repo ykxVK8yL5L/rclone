@@ -12,9 +12,9 @@ description: "Rclone Authors and Contributors"
 
 ## Contributors
 
-{{< rem `email addresses removed from here need to be added to
+<!-- email addresses removed from here need to be added to
 bin/.ignore-emails to make sure update-authors.py doesn't immediately
-put them back in again.` >}}
+put them back in again. -->
 
 - Alex Couper <amcouper@gmail.com>
 - Leonid Shalupov <leonid@shalupov.com> <shalupov@diverse.org.ru>
@@ -1031,3 +1031,15 @@ put them back in again.` >}}
 - divinity76 <hans@loltek.net>
 - Andrew Gunnerson <accounts+github@chiller3.com>
 - Lakshmi-Surekha <Lakshmi.Kovvuri@ibm.com>
+- dulanting <dulanting@outlook.jp>
+- Adam Dinwoodie <me-and@users.noreply.github.com>
+- Lukas Krejci <metlos@users.noreply.github.com>
+- Riaz Arbi <riazarbi@users.noreply.github.com>
+- Fawzib Rojas <fawzib.rojas@gmail.com>
+- fries1234 <fries1234@protonmail.com>
+- Joseph Brownlee <39440458+JellyJoe198@users.noreply.github.com>
+- Ted Robertson <10043369+tredondo@users.noreply.github.com>
+- SublimePeace <184005903+SublimePeace@users.noreply.github.com>
+- Copilot <198982749+Copilot@users.noreply.github.com>
+- Alex <64072843+A1ex3@users.noreply.github.com>
+- n4n5 <its.just.n4n5@gmail.com>
