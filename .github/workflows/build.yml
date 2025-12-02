@@ -89,7 +89,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -249,7 +249,7 @@ jobs:
           echo "runner-os-version=$ImageOS" >> $GITHUB_OUTPUT
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
             fetch-depth: 0
 
@@ -309,13 +309,13 @@ jobs:
           restore-keys: golangci-lint-${{ steps.get-runner-parameters.outputs.runner-os-version }}-go${{ steps.setup-go.outputs.go-version }}-${{ steps.get-runner-parameters.outputs.year-week }}-
 
       - name: Code quality test (Linux)
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           skip-cache: true
 
       - name: Code quality test (Windows)
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         env:
           GOOS: "windows"
         with:
@@ -323,7 +323,7 @@ jobs:
           skip-cache: true
 
       - name: Code quality test (macOS)
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         env:
           GOOS: "darwin"
         with:
@@ -331,7 +331,7 @@ jobs:
           skip-cache: true
 
       - name: Code quality test (FreeBSD)
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         env:
           GOOS: "freebsd"
         with:
@@ -339,7 +339,7 @@ jobs:
           skip-cache: true
 
       - name: Code quality test (OpenBSD)
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         env:
           GOOS: "openbsd"
         with:
@@ -377,7 +377,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
