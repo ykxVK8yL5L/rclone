@@ -1067,3 +1067,9 @@ put them back in again. -->
 - Qingwei Li <332664203@qq.com>
 - yy <yhymmt37@gmail.com>
 - Marc-Philip <marc-philip.werner@sap.com>
+- Mikel Olasagasti Uranga <mikel@olasagasti.info>
+- Nick Owens <mischief@offblast.org>
+- hyusap <paulayush@gmail.com>
+- jzunigax2 <125698953+jzunigax2@users.noreply.github.com>
+- lullius <lullius@users.noreply.github.com>
+- StarHack <StarHack@users.noreply.github.com>
