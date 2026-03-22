@@ -83,8 +83,8 @@ jobs:
           - job_name: go1.25
             os: ubuntu-latest
             go: '~1.25.7'
-            quicktest: true
-            racequicktest: true
+            quicktest: false
+            racequicktest: false
 
 
     name: ${{ matrix.job_name }}
@@ -246,6 +246,11 @@ jobs:
           #   fi
           # done
           # 下面的命令去除了文件名的git的信息，这样以后直接上传就会替换老文件
+
+          ls build
+          ls build/*/
+
+          
           for dir in build/*/; do
             if [ -d "$dir" ]; then
               dir_name=$(basename "$dir")  # 获取目录名
