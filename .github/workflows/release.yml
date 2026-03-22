@@ -238,6 +238,7 @@ jobs:
         if: env.RCLONE_CONFIG_PASS != '' && matrix.deploy && github.head_ref == '' && github.repository == 'rclone/rclone'
 
       - name: 整理文件
+        if: ${{ matrix.job_name }} == 'other_os'
         run: |
           # for dir in build/*/; do
           #   if [ -d "$dir" ]; then
@@ -246,11 +247,6 @@ jobs:
           #   fi
           # done
           # 下面的命令去除了文件名的git的信息，这样以后直接上传就会替换老文件
-
-          ls build
-          ls build/*/
-
-          
           for dir in build/*/; do
             if [ -d "$dir" ]; then
               dir_name=$(basename "$dir")  # 获取目录名
@@ -258,6 +254,26 @@ jobs:
               zip -r "build/$new_dir_name.zip" -j "$dir"/*
             fi
           done
+        env:
+          GH_TOKEN: ${{ secrets.MY_TOKEN }}
+      
+      - name: 整理文件
+        if: ${{ matrix.job_name }} != 'other_os'
+        run: |
+            mkdir -p build
+            VERSION=$(git describe --tags --always)
+            OS=$(uname | tr '[:upper:]' '[:lower:]')
+            ARCH=$(uname -m)
+            BUILD_TIME=$(date +%Y%m%d%H%M)
+            if [[ "$OS" == "windows" ]]; then
+                ZIP_NAME="rclone-${VERSION}-${OS}-${ARCH}.zip"
+                zip -j "$ZIP_NAME" rclone.exe
+                mv "$ZIP_NAME" build/
+            else
+                TAR_NAME="rclone-${VERSION}-${OS}-${ARCH}.tar.gz"
+                tar czvf "$TAR_NAME" rclone
+                mv "$TAR_NAME" build/
+            fi
         env:
           GH_TOKEN: ${{ secrets.MY_TOKEN }}
 
