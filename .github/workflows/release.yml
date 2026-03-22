@@ -263,7 +263,7 @@ jobs:
             mkdir -p build
             VERSION=$(cat VERSION)
             OS=$(uname | tr '[:upper:]' '[:lower:]')
-            ARCH=$(uname -m)
+            ARCH=$(go env GOARCH)
             BUILD_TIME=$(date +%Y%m%d%H%M)
             if [[ "$OS" == "windows" ]]; then
                 ZIP_NAME="rclone-${VERSION}-windows-${ARCH}.zip"
