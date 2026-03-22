@@ -48,7 +48,7 @@ jobs:
             quicktest: false
 
           - job_name: mac_amd64
-            os: macos-latest
+            os: macos-26-intel
             go: '~1.26.0'
             gotags: 'cmount'
             build_flags: '-include "^darwin/amd64" -cgo'
