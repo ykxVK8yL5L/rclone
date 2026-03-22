@@ -263,7 +263,7 @@ jobs:
             mkdir -p build
             VERSION=$(cat VERSION)
             OS=$(uname | tr '[:upper:]' '[:lower:]')
-            ARCH=$(go env GOARCH)
+            ARCH=${{ matrix.job_name }}
             BUILD_TIME=$(date +%Y%m%d%H%M)
             if [[ "$OS" == "windows" ]]; then
                 ZIP_NAME="rclone-${VERSION}-windows-${ARCH}.zip"
@@ -274,7 +274,6 @@ jobs:
                 tar czvf "$TAR_NAME" rclone
                 mv "$TAR_NAME" build/
             fi
-            ls build
         env:
           GH_TOKEN: ${{ secrets.MY_TOKEN }}
 
