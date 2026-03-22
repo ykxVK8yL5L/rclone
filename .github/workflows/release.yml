@@ -261,7 +261,7 @@ jobs:
         if: ${{ matrix.job_name }} != 'other_os'
         run: |
             mkdir -p build
-            VERSION=$(git describe --tags --always)
+            VERSION=$(cat VERSION)
             OS=$(uname | tr '[:upper:]' '[:lower:]')
             ARCH=$(uname -m)
             BUILD_TIME=$(date +%Y%m%d%H%M)
