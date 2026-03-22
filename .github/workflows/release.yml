@@ -238,7 +238,7 @@ jobs:
         if: env.RCLONE_CONFIG_PASS != '' && matrix.deploy && github.head_ref == '' && github.repository == 'rclone/rclone'
 
       - name: 整理文件
-        if: ${{ matrix.job_name }} == 'other_os'
+        if: matrix.job_name == 'other_os'
         run: |
           # for dir in build/*/; do
           #   if [ -d "$dir" ]; then
@@ -258,7 +258,7 @@ jobs:
           GH_TOKEN: ${{ secrets.MY_TOKEN }}
       
       - name: 整理文件
-        if: ${{ matrix.job_name }} != 'other_os'
+        if: matrix.job_name != 'other_os'
         run: |
             mkdir -p build
             VERSION=$(cat VERSION)
@@ -274,6 +274,7 @@ jobs:
                 tar czvf "$TAR_NAME" rclone
                 mv "$TAR_NAME" build/
             fi
+            ls build
         env:
           GH_TOKEN: ${{ secrets.MY_TOKEN }}
 
