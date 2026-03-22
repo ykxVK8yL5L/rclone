@@ -48,7 +48,7 @@ jobs:
             quicktest: false
 
           - job_name: mac_amd64
-            os: macos-26-intel
+            os: macos-15-intel
             go: '~1.26.0'
             gotags: 'cmount'
             build_flags: '-include "^darwin/amd64" -cgo'
@@ -167,7 +167,7 @@ jobs:
           brew update
           brew install --cask macfuse
           brew install git-annex git-annex-remote-rclone
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-latest' || matrix.os == 'macos-15-intel'
 
       - name: Install Libraries on Windows
         shell: powershell
