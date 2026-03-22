@@ -266,7 +266,7 @@ jobs:
             ARCH=$(uname -m)
             BUILD_TIME=$(date +%Y%m%d%H%M)
             if [[ "$OS" == "windows" ]]; then
-                ZIP_NAME="rclone-${VERSION}-${OS}-${ARCH}.zip"
+                ZIP_NAME="rclone-${VERSION}-windows-${ARCH}.zip"
                 zip -j "$ZIP_NAME" rclone.exe
                 mv "$ZIP_NAME" build/
             else
