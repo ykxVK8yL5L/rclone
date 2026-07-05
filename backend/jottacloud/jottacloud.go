@@ -91,6 +91,7 @@ func getServices() []service {
 		{"letsgo", "Let's Go Cloud (Germany)", "letsgo.jotta.cloud", "letsgo", "desktop-win", []string{"openid", "offline_access"}},
 		{"mediamarkt", "MediaMarkt Cloud (Multiregional)", "mediamarkt.jottacloud.com", "mediamarkt", "desktop", []string{"openid", "jotta-default", "offline_access"}},
 		{"onlime", "Onlime (Denmark)", "cloud-auth.onlime.dk", "onlime_wl", "desktop", []string{"openid", "jotta-default", "offline_access"}},
+		{"phonero", "Phonero Sky", "sky.phonero.no", "phonero", "desktop-win", []string{"openid", "offline_access"}},
 		{"tele2", "Tele2 Cloud (Sweden)", "mittcloud-auth.tele2.se", "comhem", "desktop", []string{"openid", "jotta-default", "offline_access"}},
 		{"telia_no", "Telia Sky (Norway)", "sky-auth.telia.no", "get", "desktop", []string{"openid", "jotta-default", "offline_access"}},
 		{"telia_se", "Telia Cloud (Sweden)", "cloud-auth.telia.se", "telia_se", "desktop", []string{"openid", "jotta-default", "offline_access"}},
@@ -166,7 +167,8 @@ func init() {
 			// Also: '*', '/', ':', '<', '>', '?', '\"', '\x00', '|'
 			Default: (encoder.Display |
 				encoder.EncodeWin | // :?"*<>|
-				encoder.EncodeInvalidUtf8),
+				encoder.EncodeInvalidUtf8 |
+				encoder.EncodePercent),
 		}}...),
 	})
 }
@@ -1449,7 +1451,7 @@ func (f *Fs) createOrUpdate(ctx context.Context, file string, createTime time.Ti
 	return info, nil
 }
 
-// copyOrMoves copies or moves directories or files depending on the method parameter
+// copyOrMove copies or moves directories or files depending on the method parameter
 func (f *Fs) copyOrMove(ctx context.Context, method, src, dest string) (info *api.JottaFile, err error) {
 	opts := rest.Opts{
 		Method:     "POST",

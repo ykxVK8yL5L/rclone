@@ -32,6 +32,9 @@ func newItemTestCache(t *testing.T) (r *fstest.Run, c *Cache) {
 	// Disable synchronous write
 	opt.WriteBack = 0
 
+	// Disable handle caching so existing tests get immediate close behavior
+	opt.HandleCaching = 0
+
 	return newTestCacheOpt(t, opt)
 }
 
@@ -579,4 +582,190 @@ func TestItemReadWrite(t *testing.T) {
 		require.NoError(t, item.Close(nil))
 		assert.False(t, item.remove(fileName))
 	})
+}
+
+func newItemTestCacheHandleCaching(t *testing.T, handleCaching time.Duration) (r *fstest.Run, c *Cache) {
+	opt := vfscommon.Opt
+
+	// Disable the cache cleaner as it interferes with these tests
+	opt.CachePollInterval = 0
+
+	// Disable synchronous write
+	opt.WriteBack = 0
+
+	// Set handle caching grace period
+	opt.HandleCaching = fs.Duration(handleCaching)
+
+	return newTestCacheOpt(t, opt)
+}
+
+func TestItemHandleCaching(t *testing.T) {
+	r, c := newItemTestCacheHandleCaching(t, 1*time.Second)
+
+	contents, obj, item := newFile(t, r, c, "existing")
+
+	// Open, read, and close the item
+	require.NoError(t, item.Open(obj))
+
+	buf := make([]byte, 10)
+	n, err := item.ReadAt(buf, 0)
+	assert.Equal(t, 10, n)
+	require.NoError(t, err)
+	assert.Equal(t, contents[:10], string(buf[:n]))
+
+	require.NoError(t, item.Close(nil))
+
+	// After close, grace period should keep fd and downloaders alive
+	item.mu.Lock()
+	assert.NotNil(t, item.fd, "fd should still be open during grace period")
+	assert.NotNil(t, item.downloaders, "downloaders should still be alive during grace period")
+	assert.NotNil(t, item.graceTimer, "grace timer should be set")
+	item.mu.Unlock()
+
+	// Re-open the item - should reuse existing fd and downloaders
+	require.NoError(t, item.Open(obj))
+
+	// Read data to verify it works
+	n, err = item.ReadAt(buf, 10)
+	assert.Equal(t, 10, n)
+	require.NoError(t, err)
+	assert.Equal(t, contents[10:20], string(buf[:n]))
+
+	// Close again
+	require.NoError(t, item.Close(nil))
+
+	// Wait for grace period to expire
+	time.Sleep(1500 * time.Millisecond)
+
+	// After grace period, fd and downloaders should be cleaned up
+	item.mu.Lock()
+	assert.Nil(t, item.fd, "fd should be closed after grace period")
+	assert.Nil(t, item.downloaders, "downloaders should be closed after grace period")
+	assert.Nil(t, item.graceTimer, "grace timer should be nil after expiry")
+	item.mu.Unlock()
+}
+
+func TestItemHandleCachingDisabled(t *testing.T) {
+	r, c := newItemTestCacheHandleCaching(t, 0)
+
+	contents, obj, item := newFile(t, r, c, "existing")
+	_ = contents
+
+	// Open and close the item
+	require.NoError(t, item.Open(obj))
+	require.NoError(t, item.Close(nil))
+
+	// With handle caching disabled, fd and downloaders should be immediately closed
+	item.mu.Lock()
+	assert.Nil(t, item.fd, "fd should be closed immediately when handle caching disabled")
+	assert.Nil(t, item.downloaders, "downloaders should be closed immediately when handle caching disabled")
+	assert.Nil(t, item.graceTimer, "grace timer should not be set when handle caching disabled")
+	item.mu.Unlock()
+}
+
+func TestItemHandleCachingReset(t *testing.T) {
+	r, c := newItemTestCacheHandleCaching(t, 1*time.Second)
+
+	_, obj, item := newFile(t, r, c, "existing")
+
+	// Open, read (to instantiate cache), and close the item
+	require.NoError(t, item.Open(obj))
+
+	buf := make([]byte, 10)
+	_, err := item.ReadAt(buf, 0)
+	require.NoError(t, err)
+
+	require.NoError(t, item.Close(nil))
+
+	// Grace timer should be active
+	item.mu.Lock()
+	assert.NotNil(t, item.graceTimer, "grace timer should be set")
+	item.mu.Unlock()
+
+	// Reset should skip the item during grace period
+	rr, _, err := item.Reset()
+	require.NoError(t, err)
+	assert.Equal(t, SkippedGrace, rr)
+
+	// Grace timer should still be active
+	item.mu.Lock()
+	assert.NotNil(t, item.graceTimer, "grace timer should still be set after skipped reset")
+	item.mu.Unlock()
+
+	// Wait for grace period to expire then reset should remove the item
+	time.Sleep(1500 * time.Millisecond)
+
+	rr, _, err = item.Reset()
+	require.NoError(t, err)
+	assert.Equal(t, RemovedNotInUse, rr)
+}
+
+// TestItemHandleCachingReopenDuringGraceClose reproduces a race between
+// reopening an item and the grace-period close firing for it.
+//
+// closeAfterGrace clears the grace timer and then runs the actual close,
+// which temporarily drops item.mu while it tears down the downloaders -
+// at that point the file handle is still open. A reopen landing in that
+// window used to see no grace timer and a live fd and fail _createFile
+// with "internal error: didn't Close file".
+func TestItemHandleCachingReopenDuringGraceClose(t *testing.T) {
+	r, c := newItemTestCacheHandleCaching(t, 10*time.Second)
+
+	_, obj, item := newFile(t, r, c, "existing")
+	buf := make([]byte, 1)
+
+	const iterations = 50
+	for i := 0; i < iterations; i++ {
+		// Open, read (to create a downloader) and close so a grace
+		// timer is pending with the fd and downloaders still alive.
+		require.NoError(t, item.Open(obj))
+		_, err := item.ReadAt(buf, 0)
+		require.NoError(t, err)
+		require.NoError(t, item.Close(nil))
+
+		// Drive the grace close ourselves so we can race it against a
+		// reopen. Hold item.mu and park both the close (A) and the
+		// reopen (B) on the lock with A queued first. When we release,
+		// A runs the close, which drops item.mu to tear down the
+		// downloaders, and B - already waiting - grabs it in that
+		// window and observes the still-open fd.
+		item.mu.Lock()
+		require.NotNil(t, item.graceTimer, "grace timer should be set after close")
+		item.graceTimer.Stop()
+
+		var openErr error
+		var wg sync.WaitGroup
+		wg.Add(2)
+		startA := make(chan struct{})
+		startB := make(chan struct{})
+		go func() {
+			defer wg.Done()
+			<-startA
+			item.closeAfterGrace()
+		}()
+		go func() {
+			defer wg.Done()
+			<-startB
+			openErr = item.Open(obj)
+		}()
+		close(startA)
+		time.Sleep(time.Millisecond) // let A park on item.mu first
+		close(startB)
+		time.Sleep(time.Millisecond) // let B park on item.mu
+		item.mu.Unlock()
+		wg.Wait()
+
+		require.NoError(t, openErr, "reopen racing a grace-period close failed on iteration %d", i)
+
+		// Drop the handle from the successful reopen so the next
+		// iteration starts from a closed item.
+		require.NoError(t, item.Close(nil))
+	}
+
+	// Stop the grace timer left pending by the final close.
+	item.mu.Lock()
+	if item.graceTimer != nil {
+		item.graceTimer.Stop()
+	}
+	item.mu.Unlock()
 }
